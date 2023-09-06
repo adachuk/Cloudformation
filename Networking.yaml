@@ -1,0 +1,179 @@
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: 10.0.0.0/16
+    Public1:
+      CIDR: 10.0.0.0/24
+    Public2:
+      CIDR: 10.0.1.0/24
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - VPC
+        - CIDR
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackId'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d7e44edf-7068-4b30-b48d-f031e7b4b875
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select 
+        - '0'
+        - !GetAZs ''
+      MapPublicIpOnLaunch: 'true'
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public1
+        - CIDR
+      Tags:
+        - Key: Name
+        - Value: Public
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: bec80366-0707-469f-9169-d1d2272ddf9b
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select 
+        - '1'
+        - !GetAZs ''
+      MapPublicIpOnLaunch: 'true'
+      CidrBlock: !FindInMap 
+        - SubnetConfig
+        - Public2
+        - CIDR
+      Tags:
+        - Key: Name
+          Value: Public
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: b94ef70c-bc11-4770-a3e9-a8b6a8291af8
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackId'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: ee947d51-944d-43ba-9b23-ecce024a385b
+  GatewayToInternet:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 616c00a1-5e19-4c5e-b028-2b7adb01655d
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackId'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 153cf533-7310-48f3-b006-357b2a5ec9fd
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8594b42d-ba68-4d92-8802-ecac3ce0d86b
+  PublicSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+  PublicApplicationLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref PublicLoadBalancerSecurityGroup
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: c61f13b0-5cf5-4acb-958f-21688d94432b
+  ALBListner:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+        - TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref PublicApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 932ec5aa-d08d-448a-a3f3-1d5823c3c743
+  ALBTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 90
+      HealthCheckTimeoutSeconds: 60
+      HealthyThreasholdCount: 3
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThreasholdCount: 5
+      VpcId: !Ref VPC
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4ebea46e-9a7e-496d-996b-25d2fd3e89cf
+  PublicLoadBalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Public ELB with Security Grouup with HTTP access on port 80
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+Outputs: 
+  VPCID:
+    Description: VPC ID for VPC 
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::STACKNAME}-VPCID'
+  PublicSubnet:
+    Description: Subnet ID to use for public servers
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub '${AWS::STACKNAME}-SubnetID'
+  WebServerSecurityGroup:
+    Description: The Security group ID to use for public servers
+    Value: !Ref WebServerSecurityGroup
+    Export:
+      Name: !Sub '${AWS::STACKNAME}-SecurityGroupID'
+  PublicLoadBalancerSecurityGroup:
+    Description: The Security group ID to use for  public load blancers
+    Value: !Ref PublicLoadBalancerSecurityGroup 
+    Export:
+      Name: !Sub '${AWS::STACKNAME}-PublicLoadBalancerSecurityGroup'
