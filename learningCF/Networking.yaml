@@ -176,4 +176,4 @@ Outputs:
     Description: The Security group ID to use for  public load blancers
     Value: !Ref PublicLoadBalancerSecurityGroup 
     Export:
-      Name: !Sub '${AWS::STACKNAME}-PublicLoadBalancerSecurityGroup'
+      Name: !Sub '${AWS::STACKNAME}-PublicLoadBalancerSecurityGroupLucy'
