@@ -23,7 +23,7 @@ Resources:
     Type: "AWS::EC2::Subnet"
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: "us-east-1b"
+      AvailabilityZone: 'us-east-1a'
       MapPublicIpOnLaunch: "true"
       CidrBlock: !FindInMap
         - "SubnetConfig"
@@ -36,7 +36,7 @@ Resources:
     Type: "AWS::EC2::Subnet"
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: "us-east-1a"
+      AvailabilityZone: 'us-east-1b'
       MapPublicIpOnLaunch: "true"
       CidrBlock: !FindInMap
         - SubnetConfig
@@ -90,4 +90,9 @@ Outputs:
     Description: Subnet ID to use for public servers
     Value: !Ref PublicSubnet1
     Export:
-      Name: !Sub "${AWS::StackName}-SubnetID"
+      Name: !Sub "${AWS::StackName}-SubnetID-1"
+  PublicSubnet2:
+    Description: Subnet ID to use for public servers
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-SubnetID-2"

@@ -1,45 +1,61 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Creates an instance with an autoscaling group, behind an application load balancer. 
+Description: Creates an instance with an autoscaling group, behind an application load balancer.
 Parameters:
-  InstanceTypeParameter:
-    Type: String
-    Default: t3.micro
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the web server
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+Mappings:
+  SubnetConfig: 
+  VPC:
+    CIDR: 10.0.0.0/16
+  Public1:
+    CIDR: 10.0.0.0/24
+  Public2:
+    CIDR: 10.0.1.0/24
+Resources: 
+  WebServerInstanceType: 
+    Type: 'AWS::EC2::Instance'
+    Description: Webserver EC2 Instance type
+    Default: t2.small
     AllowedValues:
-      - t3.micro
-      - t3.small
-      - t3.medium
-      - t3.large
-    Description: 'Select an instance type.'
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
   WebServerCount:
     Description: number of instances to launch for the webserver server
-    Type: Number
+    Type: Number 
     Default: '1'
   PublicApplicationLoadBalancer:
-    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
       Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - Fn::ImportValue: NetworkStack-SubnetID-1
+        - Fn::ImportValue: NetworkStack-SubnetID-2
       SecurityGroups:
         - !Ref PublicLoadBalancerSecurityGroup
   ALBTargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
-      HealthCheckIntervalSeconds: '30'
-      HealthCheckTimeoutSeconds: '10'
-      HealthyThresholdCount: "3"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
-      VpcId: !Ref VPC
+      VpcId:
+        - Fn::ImportValue: NetworkStack-VPCID
   ALBListner:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
-      DefaultActions:
+      DefaultActions: 
         - Type: 'forward'
           TargetGroupArn: !Ref ALBTargetGroup
       LoadBalancerArn: !Ref PublicApplicationLoadBalancer
-      Port: 80
+      Port: '80'
       Protocol: HTTP
   PublicLoadBalancerSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
@@ -56,19 +72,30 @@ Parameters:
           FromPort: "80"
           ToPort: "80"
           CidrIp: 0.0.0.0/0
+  WebserverSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow access from load balancer as well as HTP and HTTPS traffic. 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SecurityGroupId: !Ref PublicLoadBalancerSecurityGroup 
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
   WebServerFleet:
     Type: AWS::AutoScaling::AutoScalingGroup
-    DependsOn: PublicRoute
-    Properties: 
-       VPCZoneIdentifier: 
-          - !Ref PublicSubnet1
-          - !Ref PublicSubnet2
-       LaunchConfigurationName: !Ref WebServerLaunchConfig
-       MinSize: 1
-       MaxSize: 10 
-       DesiredCapacity: !Ref WebServerCount
-       TargetGroupARNS: 
-          - !Ref ALBTargetGroup 
+    Properties:
+      VPCZoneIdentifier:
+        - Fn::ImportValue: NetworkStack-SubnetID
+        - Fn::ImportValue: NetworkStack-SubnetID2
+      LaunchConfigurationName: !Ref WebServerLaunchConfig
+      MinSize: '2'
+      MaxSize: '5'
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
     CreationPolicy: 
        ResourceSignal:
           Timeout: PT45M
@@ -112,5 +139,7 @@ Parameters:
       InstanceType: !Ref InstanceTypeParameter
       UserData: !Base64 |
         #!/bin/bash -x
-        yum install -y aws-cfn-bootstrap
+        yum install -y httpd
+        systemctl start httpd
+        systemctl enable http
       EbsOptimized: true
