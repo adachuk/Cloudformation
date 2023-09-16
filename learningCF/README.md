@@ -4,3 +4,4 @@ A cloud formation template for
  - Instances
  - Elastic load balancer
  - Auto scaling group 
+- SSM Documents
