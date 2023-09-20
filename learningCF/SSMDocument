@@ -1,5 +1,5 @@
-schemaVersion: '2.2'
-description: Command Document Example JSON Template
+Description: Command Document Example JSON Template 
+SchemaVersion: '0.3'
 parameters:
   Packages:
     type: String
