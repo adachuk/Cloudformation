@@ -1,0 +1,11 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+ This template creates S3 bucket parent stack 
+  
+Resources:
+  Mystack:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: 'https://s3.amazonaws.com/<Bucket name>/S3'
+      TimeoutInMinutes: 60
