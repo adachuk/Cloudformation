@@ -19,4 +19,4 @@ mainSteps:
         - sleep 5;mysqladmin password {{ Password }};
         - >-
           mysql -uroot -p{{ Password }} -e 'show databases;' >
-          /root/db_output.txt
+          /root/db_output.txt 
