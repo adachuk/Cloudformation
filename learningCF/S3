@@ -169,4 +169,4 @@ Outputs:
     Description: S3 Bucket Name
   BucketForLogging:
     Value: !Ref LoggingBucket
-    Description: Bucket for CloudTrail Logss
+    Description: Bucket for CloudTrail Logs
